@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"anyun.bitbucket.com/netcap/pkg/ngrep"
 	"github.com/labstack/echo/v4"
@@ -10,10 +11,12 @@ import (
 )
 
 type Server struct {
-	conf       *Config
-	server     *echo.Echo
-	httpServer *http.Server
-	ng         *ngrep.Application
+	conf             *Config
+	server           *echo.Echo
+	httpServer       *http.Server
+	ng               *ngrep.Application
+	local            *time.Location
+	lastDumpFileName string
 }
 
 // NewServer 创建接口服务器
@@ -33,10 +36,15 @@ func NewServer(conf *Config) (*Server, error) {
 		WriteTimeout: DEFAULT_HTTP_WRITE_TIMEOUT,
 		Addr:         bindAddr,
 	}
+	l, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		return nil, fmt.Errorf("获取时区信息错误: %s", err.Error())
+	}
 	return &Server{
 		conf:       conf,
 		httpServer: httpServer,
 		server:     e,
+		local:      l,
 	}, nil
 }
 

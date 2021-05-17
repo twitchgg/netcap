@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"anyun.bitbucket.com/netcap/pkg/ngrep"
 	"github.com/labstack/echo/v4"
@@ -17,20 +19,103 @@ func (s *Server) router(e *echo.Echo) error {
 		return c.String(http.StatusOK, "OK")
 	})
 	v1 := e.Group("/cap/")
-	v1.GET("", s.v1DescRouter)
+	v1.GET("stat", s.v1Stat)
 	v1.POST("ip", s.v1IPsCap)
+	v1.POST("keyword", s.v1Keyword)
+	v1.POST("stop", s.v1Stop)
 	return nil
 }
 
-func (s *Server) v1DescRouter(c echo.Context) error {
-	return nil
+func (s *Server) v1Stat(c echo.Context) error {
+	if s.lastDumpFileName == "" {
+		return fmt.Errorf("dump文件不存在")
+	}
+	fi, err := os.Stat(s.lastDumpFileName)
+	if err != nil {
+		return fmt.Errorf("读取文件信息错误: %s", err.Error())
+	}
+	return c.String(http.StatusOK, fmt.Sprintf("%d", fi.Size()))
+}
+func (s *Server) v1Stop(c echo.Context) (err error) {
+	if err := s.ng.Stop(); err != nil {
+		return fmt.Errorf("ngrep应用程序关闭失败: %s", err.Error())
+	}
+	return c.String(http.StatusOK, "ok")
+}
+
+func (s *Server) v1Keyword(c echo.Context) (err error) {
+	stopTime := strings.ToLower(c.FormValue("stop_time"))
+	if stopTime == "" {
+		return fmt.Errorf("缺失任务结束时间参数 [stop_time]")
+	}
+	t1, err := time.ParseInLocation("2006-01-02 15:04:05", stopTime, s.local)
+	if err != nil {
+		return fmt.Errorf("停止时间解析错误: %s", err.Error())
+	}
+	keyword := c.FormValue("keyword")
+	if keyword == "" {
+		return fmt.Errorf("缺失关键字参数 [keyword]")
+	}
+	width := strings.ToLower(c.FormValue("width"))
+	if width == "" {
+		width = "dynamic"
+	}
+	if width != "fixed" && width != "dynamic" {
+		return fmt.Errorf("不支持的关键字类型: %s", width)
+	}
+	dumpSize := strings.ToUpper(c.FormValue("dump_size"))
+	if dumpSize == "" {
+		return fmt.Errorf("缺失dump文件大小参数 [dump_size]")
+	}
+	logrus.WithField("prefix", "api").
+		Debugf("keyword [%s] width [%s] stop_time [%s] dump_size [%s]",
+			keyword, width, stopTime, dumpSize)
+	if s.ng == nil {
+		if s.ng, err = ngrep.NewApplication(&ngrep.AppConfig{}); err != nil {
+			return fmt.Errorf("创建ngrep应用程序错误: %s", err.Error())
+		}
+	}
+	if s.ng.IsStart {
+		return fmt.Errorf("ngrep应用程序在运行中")
+	}
+
+	go func() {
+		s.lastDumpFileName = "./data/keyword_" + width + "_dump.pcap"
+		os.Remove(s.lastDumpFileName)
+		if width == "fixed" {
+			keyword = "^" + keyword
+		}
+		params := GenNgrepParams("", keyword, nil, s.lastDumpFileName)
+		if err := <-s.ng.Start(params); err != nil {
+			logrus.WithField("prefix", "api").WithError(err).Error("ngrep应用程序启动失败")
+		}
+		go func() {
+			for {
+				time.Sleep(time.Second)
+				if time.Since(t1) >= 0 {
+					if !s.ng.IsStart {
+						return
+					}
+					if err := s.ng.Stop(); err != nil {
+						logrus.WithField("prefix", "api").WithError(err).Error("ngrep应用程序关闭失败")
+					}
+					return
+				}
+			}
+		}()
+	}()
+	return c.String(http.StatusOK, "ok")
 }
 
 func (s *Server) v1IPsCap(c echo.Context) (err error) {
-	ipBegin := strings.ToUpper(c.FormValue("ip_begin"))
-	ipEnd := strings.ToUpper(c.FormValue("ip_end"))
-	stopTime := strings.ToUpper(c.FormValue("stop_time"))
-	dumpSize := strings.ToUpper(c.FormValue("dump_size"))
+	ipBegin := strings.ToLower(c.FormValue("ip_begin"))
+	ipEnd := strings.ToLower(c.FormValue("ip_end"))
+	stopTime := strings.ToLower(c.FormValue("stop_time"))
+	t1, err := time.ParseInLocation("2006-01-02 15:04:05", stopTime, s.local)
+	if err != nil {
+		return fmt.Errorf("停止时间解析错误: %s", err.Error())
+	}
+	dumpSize := strings.ToLower(c.FormValue("dump_size"))
 	if ipBegin == "" {
 		return fmt.Errorf("缺失起始IP参数参数 [ip_begin]")
 	}
@@ -62,10 +147,26 @@ func (s *Server) v1IPsCap(c echo.Context) (err error) {
 	}
 	go func() {
 		ips := GetIpsFromRange(ipBegin, ipEnd)
-		params := GenNgrepParams("", "", ips, "./dump.pcap")
+		s.lastDumpFileName = "./data/ip_range_dump.pcap"
+		os.Remove(s.lastDumpFileName)
+		params := GenNgrepParams("", "", ips, s.lastDumpFileName)
 		if err := <-s.ng.Start(params); err != nil {
 			logrus.WithField("prefix", "api").WithError(err).Error("ngrep应用程序启动失败")
 		}
+		go func() {
+			for {
+				time.Sleep(time.Second)
+				if time.Since(t1) >= 0 {
+					if !s.ng.IsStart {
+						return
+					}
+					if err := s.ng.Stop(); err != nil {
+						logrus.WithField("prefix", "api").WithError(err).Error("ngrep应用程序关闭失败")
+					}
+					return
+				}
+			}
+		}()
 	}()
 	return c.String(http.StatusOK, "ok")
 }

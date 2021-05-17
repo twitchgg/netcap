@@ -3,14 +3,11 @@ package cmd
 import (
 	"os"
 	"os/signal"
-	"strconv"
-	"strings"
 	"syscall"
 
-	"anyun.bitbucket.com/netcap/pkg/ngrep"
+	"anyun.bitbucket.com/netcap/internal/api"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 )
 
@@ -22,16 +19,8 @@ var envs struct {
 	dev string
 	// 日志级别
 	loggerLevel string
-	// 过滤关键字
-	keyword string
-	// 监听端口
-	ports string
-	// pcap dump文件路径
-	dumpPath string
-	// 监听IP地址
-	hostIps string
-	// 监听网络
-	hostNets string
+	// bindAddr 绑定地址
+	bindAddr string
 }
 var errChan chan error
 var rootCmd = &cobra.Command{
@@ -49,38 +38,14 @@ var rootCmd = &cobra.Command{
 		logrus.SetLevel(lvl)
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		ports1 := strings.Split(envs.ports, ",")
-		ports2 := make([]int, len(ports1))
-		for i, v := range ports1 {
-			aport, err := strconv.Atoi(v)
-			if err != nil {
-				logrus.WithField("prefix", "root_cmd").WithError(err).
-					Fatal("监听端口解析错误")
-			}
-			ports2[i] = aport
-		}
-		hostIps := []string{}
-		if envs.hostIps != "" {
-			hostIps = strings.Split(envs.hostIps, ",")
-		}
-		hostNets := []string{}
-		if envs.hostNets != "" {
-			hostNets = strings.Split(envs.hostNets, ",")
-		}
-		app, err := ngrep.NewApplication(&ngrep.AppConfig{
-			NgrepPath: envs.ngrepPath,
-			Dev:       envs.dev,
-			Keyword:   envs.keyword,
-			DumpPath:  envs.dumpPath,
-			HostIPS:   hostIps,
-			HostNets:  hostNets,
-			Ports:     ports2,
+		server, err := api.NewServer(&api.Config{
+			BindAddr: envs.bindAddr,
 		})
 		if err != nil {
 			logrus.WithField("prefix", "root_cmd").WithError(err).
 				Fatal("应用程序创建错误: %s", err.Error())
 		}
-		errChan = app.Start()
+		errChan = server.Start()
 	},
 	PostRun: func(cmd *cobra.Command, args []string) {
 		go func() {
@@ -95,17 +60,11 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	cobra.OnInitialize(func() {})
-	viper.AutomaticEnv()
-	viper.SetEnvPrefix("NP")
 
 	rootCmd.Flags().StringVar(&envs.dev, "dev", "", "监听网卡设备名称")
-	rootCmd.Flags().StringVar(&envs.keyword, "keyword", "", "过滤关键字正则表达式")
 	rootCmd.Flags().StringVar(&envs.loggerLevel, "logger-level", "DEBUG", "日志级别")
 	rootCmd.Flags().StringVar(&envs.ngrepPath, "ngrep-path", "", "ngrep执行程序路径")
-	rootCmd.Flags().StringVar(&envs.ports, "ports", "", "抓包监听端口")
-	rootCmd.Flags().StringVar(&envs.dumpPath, "dump-path", "./dump.pcap", "pcap dump文件路径")
-	rootCmd.Flags().StringVar(&envs.hostIps, "host-ip", "", "监听IP地址")
-	rootCmd.Flags().StringVar(&envs.hostNets, "host-net", "", "监听IP网络")
+	rootCmd.Flags().StringVar(&envs.bindAddr, "bind-addr", "", "API服务绑定地址")
 }
 
 func Execute() {

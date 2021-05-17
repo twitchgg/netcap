@@ -7,8 +7,9 @@ import (
 
 // Application ngrep app应用程序
 type Application struct {
-	conf *AppConfig
-	cmd  *exec.Cmd
+	conf    *AppConfig
+	cmd     *exec.Cmd
+	IsStart bool
 }
 
 // NewApplication 创建ngrep应用程序
@@ -26,12 +27,14 @@ func NewApplication(conf *AppConfig) (app *Application, err error) {
 }
 
 // Start 后台启动应用程序
-func (a *Application) Start() chan error {
-	fmt.Println(a.conf.NgrepPath, a.conf.GenNgrepParams())
-	a.cmd = exec.Command(a.conf.NgrepPath, a.conf.GenNgrepParams()...)
+func (a *Application) Start(params []string) chan error {
+	fmt.Println(a.conf.NgrepPath, params)
+	a.cmd = exec.Command(a.conf.NgrepPath, params...)
 	errChan := make(chan error, 1)
 	a.cmd.Start()
+	a.IsStart = true
 	if err := a.cmd.Wait(); err != nil {
+		a.IsStart = false
 		errChan <- fmt.Errorf("应用程序运行错误: %s", err.Error())
 		return errChan
 	}
@@ -43,5 +46,6 @@ func (a *Application) Stop() error {
 	if err := a.cmd.Process.Kill(); err != nil {
 		return err
 	}
+	a.IsStart = false
 	return nil
 }

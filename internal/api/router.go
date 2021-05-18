@@ -98,6 +98,8 @@ func (s *Server) v1Keyword(c echo.Context) (err error) {
 					}
 					if err := s.ng.Stop(); err != nil {
 						logrus.WithField("prefix", "api").WithError(err).Error("ngrep应用程序关闭失败")
+					} else {
+						logrus.WithField("prefix", "api").Info("ngrep应用程序关闭")
 					}
 					return
 				}

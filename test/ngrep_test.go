@@ -36,7 +36,7 @@ func TestHTTPClient(t *testing.T) {
 	form := url.Values{}
 	form.Add("ip_begin", "172.28.4.237")
 	form.Add("ip_end", "172.28.4.238")
-	form.Add("stop_time", "2021-05-18 02:58:00")
+	form.Add("stop_time", "2021-05-18 11:18:00")
 	form.Add("dump_size", "500")
 
 	req, err := http.NewRequest("POST", "http://127.0.0.1:8081/cap/ip", strings.NewReader(form.Encode()))

@@ -86,9 +86,6 @@ func (s *Server) v1Keyword(c echo.Context) (err error) {
 			keyword = "^" + keyword
 		}
 		params := GenNgrepParams(s.conf.Dev, keyword, nil, s.lastDumpFileName)
-		if err := <-s.ng.Start(params); err != nil {
-			logrus.WithField("prefix", "api").WithError(err).Error("ngrep应用程序启动失败")
-		}
 		go func() {
 			for {
 				time.Sleep(time.Second)
@@ -105,6 +102,10 @@ func (s *Server) v1Keyword(c echo.Context) (err error) {
 				}
 			}
 		}()
+		if err := <-s.ng.Start(params); err != nil {
+			logrus.WithField("prefix", "api").WithError(err).Error("ngrep应用程序启动失败")
+		}
+
 	}()
 	return c.String(http.StatusOK, "ok")
 }
@@ -152,9 +153,6 @@ func (s *Server) v1IPsCap(c echo.Context) (err error) {
 		s.lastDumpFileName = "./data/ip_range_dump.pcap"
 		os.Remove(s.lastDumpFileName)
 		params := GenNgrepParams(s.conf.Dev, "", ips, s.lastDumpFileName)
-		if err := <-s.ng.Start(params); err != nil {
-			logrus.WithField("prefix", "api").WithError(err).Error("ngrep应用程序启动失败")
-		}
 		go func() {
 			for {
 				time.Sleep(time.Second)
@@ -171,6 +169,10 @@ func (s *Server) v1IPsCap(c echo.Context) (err error) {
 				}
 			}
 		}()
+		if err := <-s.ng.Start(params); err != nil {
+			logrus.WithField("prefix", "api").WithError(err).Error("ngrep应用程序启动失败")
+		}
+
 	}()
 	return c.String(http.StatusOK, "ok")
 }

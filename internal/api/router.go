@@ -20,10 +20,18 @@ func (s *Server) router(e *echo.Echo) error {
 	})
 	v1 := e.Group("/cap/")
 	v1.GET("stat", s.v1Stat)
+	v1.GET("file", s.v1File)
 	v1.POST("ip", s.v1IPsCap)
 	v1.POST("keyword", s.v1Keyword)
 	v1.POST("stop", s.v1Stop)
 	return nil
+}
+
+func (s *Server) v1File(c echo.Context) error {
+	if s.lastDumpFileName == "" {
+		return fmt.Errorf("dump文件不存在")
+	}
+	return c.File(s.lastDumpFileName)
 }
 
 func (s *Server) v1Stat(c echo.Context) error {

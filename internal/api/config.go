@@ -26,6 +26,7 @@ func SimpleAPIErrorHandler(err error, c echo.Context) {
 // Config HTTP API 服务配置
 type Config struct {
 	BindAddr string
+	Dev      string
 }
 
 // Check 检查API服务配置

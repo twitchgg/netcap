@@ -40,6 +40,7 @@ var rootCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		server, err := api.NewServer(&api.Config{
 			BindAddr: envs.bindAddr,
+			Dev:      envs.dev,
 		})
 		if err != nil {
 			logrus.WithField("prefix", "root_cmd").WithError(err).

@@ -34,8 +34,8 @@ func TestFileSize(t *testing.T) {
 func TestHTTPClient(t *testing.T) {
 	client := &http.Client{}
 	form := url.Values{}
-	form.Add("ip_begin", "172.28.4.237")
-	form.Add("ip_end", "172.28.4.238")
+	form.Add("ip_begin", "172.28.11.254")
+	form.Add("ip_end", "172.28.11.255")
 	form.Add("stop_time", "2021-05-18 15:18:00")
 	form.Add("dump_size", "500")
 

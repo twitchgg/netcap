@@ -31,9 +31,7 @@ func (s *Server) v1File(c echo.Context) error {
 	if s.lastDumpFileName == "" {
 		return fmt.Errorf("dump文件不存在")
 	}
-	c.Response().Header().Add("Content-Type", "application/octet-stream")
-	c.Response().Header().Add("Content-Disposition", "attachment;filename=stream.pcap")
-	return c.File(s.lastDumpFileName)
+	return c.Attachment(s.lastDumpFileName, "stream.pcap")
 }
 
 func (s *Server) v1Stat(c echo.Context) error {
